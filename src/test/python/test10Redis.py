@@ -2,7 +2,7 @@
 """test for existance of 'redis' and basic functionality"""
 
 # std python
-import unittest            # std
+import unittest
 import time
 
 # make local python available
@@ -13,7 +13,7 @@ sys.path = [ "../../main/python"] + sys.path
 from dropy.sredis import SRedis
 
 
-class TestRedis(unittest.TestCase):
+class RedisTestCase(unittest.TestCase):
     TESTKEY = 'unittest:testkey'
     def setUp(self):
         pass
