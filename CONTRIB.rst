@@ -10,6 +10,8 @@ PyCypto
  * a quite standard C implementation for python of several cryptographic stuff
  * http://www.amk.ca/python/code/crypto
  * Ubuntu: sudo apt-get install python-crypto
+ * more links:
+   * http://www.codekoala.com/blog/2009/aes-encryption-python-using-pycrypto/
 
 Example::
 
