@@ -2,62 +2,17 @@
 """test crypto algos"""
 
 # std python
-from sys import *
+import sys
 import unittest
-
-# 3rd party
-from Crypto.Cipher import DES
-from Crypto.Cipher import AES
 
 # make local python available
 #import sys
-#sys.path = [ "../../main/python"] + sys.path
+sys.path = [ "../../main/python"] + sys.path
 
 # dropy local
-#from dropy.sredis import SRedis
+from dropy.crypto import encrypt_block_pw, decrypt_block_pw
 
-
-
-import os, random, struct
-from Crypto.Cipher import AES
-
-from cStringIO import StringIO
-
-def encrypt_block(key, data, padchar=' '):
-    """ Encrypts data using AES (CBC mode) with the given key.
-        key:
-            The encryption key - a string that must be
-            either 16, 24 or 32 bytes long. Longer keys
-            are more secure.
-    """
-    # http://eli.thegreenplace.net/2010/06/25/aes-encryption-of-files-in-python-with-pycrypto/
-    import random
-    #
-    assert len(key) in [16, 24, 32]
-    assert len(data) > 0
-    iv = ''.join(chr(random.randint(0, 0xFF)) for i in range(16))
-    encryptor = AES.new(key, AES.MODE_CBC, iv)
-    output = StringIO()
-    output.write(struct.pack('<Q', len(data)))
-    output.write(iv)
-    if len(data) % 16 != 0:
-        data += padchar * (16 - len(data) % 16)
-    output.write(encryptor.encrypt(data))
-    return output.getvalue()
-
-
-def decrypt_block(key, crypted_data):
-    """ Decrypts a file using AES (CBC mode) with the given key.
-    """
-    assert len(key) in [16, 24, 32]
-    assert len(crypted_data) > 0
-    infile = StringIO(crypted_data)
-    origsize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]
-    iv = infile.read(16)
-    decryptor = AES.new(key, AES.MODE_CBC, iv)
-    data = decryptor.decrypt(infile.read())
-    return data[:origsize]
-
+VERBOSE = True
 
 class CryptoTestCase(unittest.TestCase):
 
@@ -66,16 +21,64 @@ class CryptoTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-    # 32:__________12345678_1_2345678_2_2345678_3_2
-    AES_SECRET = r"This is a keY! th/\t-noone will "
+    PASSWORD = r"This is 1 Key!"
 
-    def testAesData(self):
+    def test10AesData(self):
         """check AES en- and decryption of a data block"""
         data = r"klsjdfhalksjdfhalksj lksajdfhlkasjdf hlaksjdfhaksjdfjhlaksd flaskdjf halskdjfh alksdjfh jjdflaksjhdfiuui"
-        r1 = encrypt_block(self.AES_SECRET, data)
-        r2 = decrypt_block(self.AES_SECRET, r1)
+        r1 = encrypt_block_pw(self.PASSWORD, data)
+        r2 = decrypt_block_pw(self.PASSWORD, r1)
         self.assertEquals(r2, data)
 
+    def test11AesNocompress(self):
+        """check AES without compression"""
+        data = r"klsjdfhalksjdfhalksj lksajdfhlkasjdf hlaksjdfhaksjdfjhlaksd flaskdjf halskdjfh alksdjfh jjdflaksjhdfiuui"
+        r1 = encrypt_block_pw(self.PASSWORD, data, compress=None)
+        r2 = decrypt_block_pw(self.PASSWORD, r1, compress=None)
+        self.assertEquals(r2, data)
+
+    def test20AesLongRepeatedData(self):
+        """check AES encryption of long repeats"""
+        def atest(data):
+            r1 = encrypt_block_pw(self.PASSWORD, data, compress_options=[9])
+            r2 = decrypt_block_pw(self.PASSWORD, r1)
+            n1 = encrypt_block_pw(self.PASSWORD, data, compress=None)
+            n2 = decrypt_block_pw(self.PASSWORD, n1, compress=None)
+            if VERBOSE: print >>sys.stderr, "  len(in):", len(data), " len(crypt):", len(r1), " len(crypt-nocompress):", len(n1)
+            self.assertEquals(r2, data)
+            self.assertEquals(n2, data)
+        if VERBOSE: print >>sys.stderr
+        atest("a")
+        atest("a"*10)
+        atest("a"*100)
+        atest("a"*1000)
+        atest("a"*10000)
+        atest("a"*100000)
+        atest("ab"*1000)
+        atest("abc"*1000)
+        atest("lkfajshdklj"*1000)
+        atest("abcdeabc"*1000)
+        atest("jdfalksjdfhlaksjd fhlkasjdhflkasjdfhlaksdjfhalskd jhfalskdjfhlkasjdhflkasjhdflk jashldk"*100)
+        atest("dfalksjdfhlaksjd fhlkasjdhflkasjdfhlaksdjfhalskd jhfalskdjfhlkasjdhflkasjhdflk jashldk"*100000)
+
+    def test21AesCompressionLevel(self):
+        """check AES encryption compression efficiency"""
+        def atest(data, opts):
+            if opts==None:
+                r1 = encrypt_block_pw(self.PASSWORD, data)
+            else:
+                r1 = encrypt_block_pw(self.PASSWORD, data, compress_options=opts)
+            r2 = decrypt_block_pw(self.PASSWORD, r1)
+            if VERBOSE: print >>sys.stderr, "  len(in):", len(data), " len(crypt):", len(r1), " opts:", opts
+            self.assertEquals(r2, data)
+        if VERBOSE: print >>sys.stderr
+        data = "dfalksjdfhlaksjd fhlkasjdhflkasjdfhlaksdjfhalskd jhfalskdjfhlkasjdhflkasjhdflk jashldk"*100000
+        atest(data, None)
+        atest(data, [])
+        atest(data, [0])
+        atest(data, [1])
+        atest(data, [9])
 
 if __name__ == "__main__":
     unittest.main()
+
